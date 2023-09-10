@@ -2,3 +2,4 @@
 internal/data/database/schema/migrations_up.sh
 .env
 .idea
+just-chatting
