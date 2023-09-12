@@ -10,3 +10,6 @@ RETURNING *;
 
 -- name: GetChatsByParticipantId :many
 SELECT * FROM tb_chats WHERE participants @> $1;
+
+-- name: GetChatWithParticipants :one
+SELECT * FROM tb_chats WHERE participants @> $1 LIMIT 1;

@@ -48,6 +48,22 @@ func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (TbChat,
 	return i, err
 }
 
+const getChatWithParticipants = `-- name: GetChatWithParticipants :one
+SELECT id, participants, created_at, updated_at FROM tb_chats WHERE participants @> $1 LIMIT 1
+`
+
+func (q *Queries) GetChatWithParticipants(ctx context.Context, participants []uuid.UUID) (TbChat, error) {
+	row := q.db.QueryRowContext(ctx, getChatWithParticipants, pq.Array(participants))
+	var i TbChat
+	err := row.Scan(
+		&i.ID,
+		pq.Array(&i.Participants),
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getChatsByParticipantId = `-- name: GetChatsByParticipantId :many
 SELECT id, participants, created_at, updated_at FROM tb_chats WHERE participants @> $1
 `

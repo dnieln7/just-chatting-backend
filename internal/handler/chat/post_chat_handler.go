@@ -41,6 +41,19 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 		participants = append(participants, participant)
 	}
 
+	existingDbChat, err := resources.PostgresDb.GetChatWithParticipants(request.Context(), participants)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Could not create chat: %v", err)
+		helpers.ResponseJsonError(writer, 400, errMessage)
+		return
+	}
+
+	if len(existingDbChat.Participants) != 0 {
+		helpers.ResponseJson(writer, 409, dbChatToChat(existingDbChat))
+		return
+	}
+
 	dbChat, err := resources.PostgresDb.CreateChat(request.Context(), db.CreateChatParams{
 		ID:           uuid.New(),
 		Participants: participants,

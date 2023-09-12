@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// TODO: avoid duplicated chats with the same participants
 func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
 	vars := mux.Vars(request)
 	stringUUID := vars["id"]
