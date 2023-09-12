@@ -10,6 +10,13 @@ import (
 	"github.com/google/uuid"
 )
 
+type TbChat struct {
+	ID           uuid.UUID
+	Participants []uuid.UUID
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type TbUser struct {
 	ID        uuid.UUID
 	Email     string

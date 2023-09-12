@@ -3,7 +3,6 @@ package user
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -22,8 +21,6 @@ func PostUserHandler(writer http.ResponseWriter, request *http.Request, resource
 	decoder := json.NewDecoder(request.Body)
 	body := PostUserBody{}
 	err := decoder.Decode(&body)
-
-	log.Println(body)
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse JSON: %v", err)

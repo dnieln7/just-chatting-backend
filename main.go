@@ -25,11 +25,13 @@ func main() {
 		PostgresDb: setupDatabase(),	
 	}
 
-	chatServer := setupChatServer()
+	// chatServer := setupChatServer()
 
-	http.HandleFunc("/chat", chatHandler(chatServer))
+	// http.HandleFunc("/chat", chatHandler(chatServer))
 	http.HandleFunc("/signup", serverResources.WithResources(user.PostUserHandler))
 	http.HandleFunc("/login", serverResources.WithResources(user.GetUserByEmailHandler))
+	http.HandleFunc("/chats", serverResources.WithResources(chat.PostChatHandler))
+	http.HandleFunc("/user/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler))
 
 	setupServer()
 }
