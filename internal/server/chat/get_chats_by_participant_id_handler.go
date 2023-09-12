@@ -3,15 +3,15 @@ package chat
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
-	path := strings.Split(request.URL.Path, "/")
-	stringUUID := path[1]
+	vars := mux.Vars(request)
+	stringUUID := vars["id"]
 
 	participant, err := uuid.Parse(stringUUID)
 
