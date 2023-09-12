@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/dnieln7/just-chatting/internal/helpers"
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -17,7 +18,7 @@ func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Reques
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse UUID: %v", stringUUID)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
@@ -25,7 +26,7 @@ func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Reques
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not create chat: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 	} else {
 		messages := []Message{}
 
@@ -33,6 +34,6 @@ func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Reques
 			messages = append(messages, dbMessageToMessage(dbMessage))
 		}
 
-		server.ResponseJson(writer, 200, Messages{Data: messages})
+		helpers.ResponseJson(writer, 200, Messages{Data: messages})
 	}
 }

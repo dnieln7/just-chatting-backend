@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/dnieln7/just-chatting/internal/helpers"
 	"github.com/dnieln7/just-chatting/internal/server"
 )
 
@@ -20,7 +21,7 @@ func GetUserByEmailHandler(writer http.ResponseWriter, request *http.Request, re
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse JSON: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
@@ -28,13 +29,13 @@ func GetUserByEmailHandler(writer http.ResponseWriter, request *http.Request, re
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not get user: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
 	if dbUser.Password == body.Password {
-		server.ResponseJson(writer, 200, dbUserToUser(dbUser))
+		helpers.ResponseJson(writer, 200, dbUserToUser(dbUser))
 	} else {
-		server.ResponseJsonError(writer, 401, "Wrong password")
+		helpers.ResponseJsonError(writer, 401, "Wrong password")
 	}
 }

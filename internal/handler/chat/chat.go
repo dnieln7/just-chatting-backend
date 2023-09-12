@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
-	"github.com/dnieln7/just-chatting/internal/server"
+	"github.com/dnieln7/just-chatting/internal/helpers"
 )
 
 type Chats struct {
@@ -21,7 +21,7 @@ type Chat struct {
 func dbChatToChat(dbChat db.TbChat) Chat {
 	return Chat{
 		ID:           dbChat.ID.String(),
-		Participants: server.UUIDsToStrings(dbChat.Participants),
+		Participants: helpers.UUIDsToStrings(dbChat.Participants),
 		CreatedAt:    dbChat.CreatedAt,
 		UpdatedAt:    dbChat.UpdatedAt,
 	}

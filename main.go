@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
-	"github.com/dnieln7/just-chatting/internal/model"
+	"github.com/dnieln7/just-chatting/internal/handler/chat"
+	"github.com/dnieln7/just-chatting/internal/handler/message"
+	"github.com/dnieln7/just-chatting/internal/handler/user"
 	"github.com/dnieln7/just-chatting/internal/server"
-	"github.com/dnieln7/just-chatting/internal/server/chat"
-	"github.com/dnieln7/just-chatting/internal/server/message"
-	"github.com/dnieln7/just-chatting/internal/server/user"
+	"github.com/dnieln7/just-chatting/internal/server/chatserver"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -24,8 +24,8 @@ var upgrader = websocket.Upgrader{}
 func main() {
 	godotenv.Load()
 
-	serverResources := server.ServerResources {
-		PostgresDb: setupDatabase(),	
+	serverResources := server.ServerResources{
+		PostgresDb: setupDatabase(),
 	}
 
 	router := mux.NewRouter()
@@ -61,10 +61,10 @@ func setupDatabase() *db.Queries {
 	return queries
 }
 
-func setupChatServer() *chat.ChatServer {
-	chatServer := chat.ChatServer{
+func setupChatServer() *chatserver.ChatServer {
+	chatServer := chatserver.ChatServer{
 		Messages:          make(chan []byte),
-		ConnectionUpdates: make(chan model.ConnectionUpdate),
+		ConnectionUpdates: make(chan chatserver.ConnectionUpdate),
 	}
 
 	go func() {
@@ -85,7 +85,7 @@ func setupChatServer() *chat.ChatServer {
 	return &chatServer
 }
 
-func setupServer(router *mux.Router)  {
+func setupServer(router *mux.Router) {
 	port := os.Getenv("PORT")
 
 	if port == "" {
@@ -95,11 +95,11 @@ func setupServer(router *mux.Router)  {
 	}
 
 	server := &http.Server{
-        Handler:      router,
-        Addr:         "127.0.0.1:" + port,
-        WriteTimeout: 10 * time.Second,
-        ReadTimeout:  10 * time.Second,
-    }
+		Handler:      router,
+		Addr:         "127.0.0.1:" + port,
+		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  10 * time.Second,
+	}
 
 	err := server.ListenAndServe()
 
@@ -108,7 +108,7 @@ func setupServer(router *mux.Router)  {
 	}
 }
 
-func chatHandler(chat *chat.ChatServer) http.HandlerFunc {
+func chatHandler(chat *chatserver.ChatServer) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		connection, err := upgrader.Upgrade(writer, request, nil)
 
@@ -117,7 +117,7 @@ func chatHandler(chat *chat.ChatServer) http.HandlerFunc {
 			return
 		}
 
-		chat.ConnectionUpdates <- model.ConnectionUpdate{
+		chat.ConnectionUpdates <- chatserver.ConnectionUpdate{
 			Connection: connection,
 			Register:   true,
 		}

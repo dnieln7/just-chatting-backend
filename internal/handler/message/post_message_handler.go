@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
+	"github.com/dnieln7/just-chatting/internal/helpers"
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/google/uuid"
 )
@@ -25,7 +26,7 @@ func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resou
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse JSON: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
@@ -33,7 +34,7 @@ func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resou
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse ChatID: %v", body.ChatID)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
@@ -41,7 +42,7 @@ func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resou
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse UserID: %v", body.UserID)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
@@ -56,8 +57,8 @@ func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resou
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not create message: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 	} else {
-		server.ResponseJson(writer, 201, dbMessageToMessage(dbMessage))
+		helpers.ResponseJson(writer, 201, dbMessageToMessage(dbMessage))
 	}
 }

@@ -1,17 +1,15 @@
-package chat
+package chatserver
 
 import (
 	"fmt"
 	"log"
-
-	"github.com/dnieln7/just-chatting/internal/model"
 	"github.com/gorilla/websocket"
 )
 
 type ChatServer struct {
 	connections       []*websocket.Conn
 	Messages          chan []byte
-	ConnectionUpdates chan model.ConnectionUpdate
+	ConnectionUpdates chan ConnectionUpdate
 }
 
 func (chat *ChatServer) AddConnection(connection *websocket.Conn) {
@@ -25,7 +23,7 @@ func (chat *ChatServer) AddConnection(connection *websocket.Conn) {
 				if ok {
 					log.Println("Close frame received, clossing...", closeErr)
 
-					chat.ConnectionUpdates <- model.ConnectionUpdate{
+					chat.ConnectionUpdates <- ConnectionUpdate{
 						Connection: connection,
 						Register:   false,
 					}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
+	"github.com/dnieln7/just-chatting/internal/helpers"
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/google/uuid"
 )
@@ -22,7 +23,7 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not parse JSON: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 		return
 	}
 
@@ -33,7 +34,7 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 
 		if err != nil {
 			errMessage := fmt.Sprintf("Could not parse UUID: %v", stringUUID)
-			server.ResponseJsonError(writer, 400, errMessage)
+			helpers.ResponseJsonError(writer, 400, errMessage)
 			return
 		}
 
@@ -49,8 +50,8 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not create chat: %v", err)
-		server.ResponseJsonError(writer, 400, errMessage)
+		helpers.ResponseJsonError(writer, 400, errMessage)
 	} else {
-		server.ResponseJson(writer, 201, dbChatToChat(dbChat))
+		helpers.ResponseJson(writer, 201, dbChatToChat(dbChat))
 	}
 }
