@@ -1,1 +1,0 @@
-goose postgres postgres://qmbsuldr:t7W4yzGEtayRGSgFa-l9yspgcQ08AHJk@silly.db.elephantsql.com:5432/qmbsuldr?search_path=just_chatting up

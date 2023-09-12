@@ -17,6 +17,15 @@ type TbChat struct {
 	UpdatedAt    time.Time
 }
 
+type TbMessage struct {
+	ID        uuid.UUID
+	ChatID    uuid.UUID
+	UserID    uuid.UUID
+	Message   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type TbUser struct {
 	ID        uuid.UUID
 	Email     string

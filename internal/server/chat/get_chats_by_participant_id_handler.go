@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// TODO: avoid duplicated chats with the same participants
 func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
 	vars := mux.Vars(request)
 	stringUUID := vars["id"]
@@ -33,6 +34,6 @@ func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Re
 			chats = append(chats, dbChatToChat(dbChat))
 		}
 
-		server.ResponseJson(writer, 201, Chats{Data: chats})
+		server.ResponseJson(writer, 200, Chats{Data: chats})
 	}
 }

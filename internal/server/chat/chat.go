@@ -8,7 +8,7 @@ import (
 )
 
 type Chats struct {
-	Data []Chat `json:"chats"`
+	Data []Chat `json:"data"`
 }
 
 type Chat struct {

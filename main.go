@@ -11,6 +11,7 @@ import (
 	"github.com/dnieln7/just-chatting/internal/model"
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/dnieln7/just-chatting/internal/server/chat"
+	"github.com/dnieln7/just-chatting/internal/server/message"
 	"github.com/dnieln7/just-chatting/internal/server/user"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -31,8 +32,10 @@ func main() {
 
 	router.HandleFunc("/signup", serverResources.WithResources(user.PostUserHandler)).Methods("POST")
 	router.HandleFunc("/login", serverResources.WithResources(user.GetUserByEmailHandler)).Methods("POST")
+	router.HandleFunc("/users/{id}/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler)).Methods("GET")
+	router.HandleFunc("/messages", serverResources.WithResources(message.PostMessageHandler)).Methods("POST")
 	router.HandleFunc("/chats", serverResources.WithResources(chat.PostChatHandler)).Methods("POST")
-	router.HandleFunc("/user/{id}/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler)).Methods("GET")
+	router.HandleFunc("/chats/{id}/messages", serverResources.WithResources(message.GetMessagesByChatIdHandler)).Methods("GET")
 
 	// http.HandleFunc("/chat", chatHandler(chatServer))
 
