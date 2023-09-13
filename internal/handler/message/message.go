@@ -7,7 +7,9 @@ import (
 )
 
 type Messages struct {
-	Data []Message `json:"data"`
+	Data        []Message `json:"data"`
+	CurrentPage int       `json:"current_page"`
+	HasNextPage bool      `json:"has_next_page"`
 }
 
 type Message struct {

@@ -12,3 +12,6 @@ RETURNING *;
 
 -- name: GetMessagesByChatId :many
 SELECT * FROM tb_messages WHERE chat_id = $1 ORDER BY created_at DESC;
+
+-- name: GetMessagesByChatIdLazy :many
+SELECT * FROM tb_messages WHERE chat_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;

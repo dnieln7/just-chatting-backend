@@ -30,12 +30,23 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/signup", serverResources.WithResources(user.PostUserHandler)).Methods("POST")
-	router.HandleFunc("/login", serverResources.WithResources(user.GetUserByEmailHandler)).Methods("POST")
-	router.HandleFunc("/users/{id}/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler)).Methods("GET")
-	router.HandleFunc("/messages", serverResources.WithResources(message.PostMessageHandler)).Methods("POST")
-	router.HandleFunc("/chats", serverResources.WithResources(chat.PostChatHandler)).Methods("POST")
-	router.HandleFunc("/chats/{id}/messages", serverResources.WithResources(message.GetMessagesByChatIdHandler)).Methods("GET")
+	router.HandleFunc("/signup", serverResources.WithResources(user.PostUserHandler)).
+	Methods("POST")
+
+	router.HandleFunc("/login", serverResources.WithResources(user.GetUserByEmailHandler)).
+	Methods("POST")
+
+	router.HandleFunc("/users/{id}/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler)).
+	Methods("GET")
+
+	router.HandleFunc("/messages", serverResources.WithResources(message.PostMessageHandler)).
+	Methods("POST")
+
+	router.HandleFunc("/chats", serverResources.WithResources(chat.PostChatHandler)).
+	Methods("POST")
+
+	router.HandleFunc("/chats/{id}/messages", serverResources.WithResources(message.GetMessagesByChatIdHandler)).
+	Queries("page", "{page:[0-9]+}").Methods("GET")
 
 	// http.HandleFunc("/chat", chatHandler(chatServer))
 
