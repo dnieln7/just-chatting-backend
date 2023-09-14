@@ -25,7 +25,7 @@ func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Re
 	dbChats, err := resources.PostgresDb.GetChatsByParticipantId(request.Context(), []uuid.UUID{participant})
 
 	if err != nil {
-		errMessage := fmt.Sprintf("Could not create chat: %v", err)
+		errMessage := fmt.Sprintf("Could not find chats: %v", err)
 		helpers.ResponseJsonError(writer, 400, errMessage)
 	} else {
 		chats := []Chat{}

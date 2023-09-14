@@ -3,19 +3,104 @@ package chatserver
 import (
 	"fmt"
 	"log"
+	"net/http"
+
+	"github.com/dnieln7/just-chatting/internal/helpers"
+	"github.com/dnieln7/just-chatting/internal/server"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
+var upgrader = websocket.Upgrader{}
+
 type ChatServer struct {
 	connections       []*websocket.Conn
-	Messages          chan []byte
+	Resources         *server.ServerResources
+	IncomingMessages  chan IncomingMessage
 	ConnectionUpdates chan ConnectionUpdate
 }
 
-func (chat *ChatServer) AddConnection(connection *websocket.Conn) {
+func (chat *ChatServer) ListenAndServe() {
 	go func() {
 		for {
-			messageType, message, err := connection.ReadMessage()
+			select {
+			case incomingMessage := <-chat.IncomingMessages:
+				chat.WriteMessage(incomingMessage)
+			case connectionUpdate := <-chat.ConnectionUpdates:
+				if connectionUpdate.Register {
+					chat.AddConnectionUpdate(connectionUpdate)
+				} else {
+					chat.RemoveConnection(connectionUpdate.Connection)
+				}
+			}
+		}
+	}()
+}
+
+func (chat *ChatServer) UpgraderHandler(writer http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
+	stringUserUUID := vars["user_id"]
+	stringChatUUID := vars["chat_id"]
+
+	chatID, err := uuid.Parse(stringChatUUID)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Could not parse UUID: %v", stringChatUUID)
+		helpers.ResponseJsonError(writer, 400, errMessage)
+		return
+	}
+
+	userID, err := uuid.Parse(stringUserUUID)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Could not parse UUID: %v", stringUserUUID)
+		helpers.ResponseJsonError(writer, 400, errMessage)
+		return
+	}
+
+	dbChat, err := chat.Resources.PostgresDb.GetChatById(request.Context(), chatID)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Could not find chats: %v", err)
+		helpers.ResponseJsonError(writer, 400, errMessage)
+		return
+	} else {
+		log.Printf("Chat %v found checking participants...\n", chatID)
+	}
+
+	isUserParticipant := helpers.ContainsUUID(dbChat.Participants, userID)
+
+	if !isUserParticipant {
+		helpers.ResponseJsonError(writer, 401, "You are not a participant in this chat")
+		return
+	} else {
+		log.Printf("Chat %v has participant %v upgrading...\n", chatID, userID)
+	}
+
+	connection, err := upgrader.Upgrade(writer, request, nil)
+
+	if err != nil {
+		log.Println("Could not upgrade request: ", err)
+		return
+	}
+
+	chat.ConnectionUpdates <- ConnectionUpdate{
+		Connection: connection,
+		UserID:     userID,
+		ChatID:     chatID,
+		Register:   true,
+	}
+}
+
+func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
+	log.Printf("Registering connection %v ...\n", connectionUpdate.Connection.RemoteAddr())
+
+	chat.connections = append(chat.connections, connectionUpdate.Connection)
+
+	go func() {
+		for {
+			messageType, message, err := connectionUpdate.Connection.ReadMessage()
 
 			if err != nil {
 				closeErr, ok := err.(*websocket.CloseError)
@@ -24,7 +109,9 @@ func (chat *ChatServer) AddConnection(connection *websocket.Conn) {
 					log.Println("Close frame received, clossing...", closeErr)
 
 					chat.ConnectionUpdates <- ConnectionUpdate{
-						Connection: connection,
+						Connection: connectionUpdate.Connection,
+						UserID:     connectionUpdate.UserID,
+						ChatID:     connectionUpdate.ChatID,
 						Register:   false,
 					}
 
@@ -39,12 +126,17 @@ func (chat *ChatServer) AddConnection(connection *websocket.Conn) {
 
 			log.Println("Message received: ", messageText, " with type: ", messageType)
 
-			chat.Messages <- message
+			chat.IncomingMessages <- IncomingMessage{
+				Message: message,
+				UserID:  connectionUpdate.UserID,
+				ChatID:  connectionUpdate.ChatID,
+			}
 		}
 	}()
 }
 
 func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
+	log.Printf("Unregistering connection %v ...\n", connection.RemoteAddr())
 
 	var index = -1
 	var last = len(chat.connections) - 1
@@ -61,7 +153,7 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 			}
 		}
 
-		log.Println("Removing connection... ", connection.LocalAddr(), " at index: ", index)
+		log.Println("Removing connection... ", connection.RemoteAddr(), " at index: ", index)
 
 		if index != -1 {
 			if index != last {
@@ -77,14 +169,15 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 	connection.Close()
 }
 
-func (chat *ChatServer) WriteMessage(message []byte) {
+func (chat *ChatServer) WriteMessage(incomingMessage IncomingMessage) {
+	log.Println("WriteMessage...")
 	for _, connection := range chat.connections {
-		err := connection.WriteMessage(websocket.TextMessage, message)
+		err := connection.WriteMessage(websocket.TextMessage, incomingMessage.Message)
 
 		if err != nil {
 			log.Println("Error writing message:", err)
 		} else {
-			messageText := fmt.Sprintf("%s", message)
+			messageText := fmt.Sprintf("%s", incomingMessage.Message)
 
 			log.Println("Message sent: ", messageText)
 		}

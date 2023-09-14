@@ -28,29 +28,36 @@ func main() {
 		PostgresDb: setupDatabase(),
 	}
 
+	chatServer := chatserver.ChatServer{
+		Resources:         &serverResources,
+		IncomingMessages:  make(chan chatserver.IncomingMessage),
+		ConnectionUpdates: make(chan chatserver.ConnectionUpdate),
+	}
+
 	router := mux.NewRouter()
 
 	router.HandleFunc("/signup", serverResources.WithResources(user.PostUserHandler)).
-	Methods("POST")
+		Methods("POST")
 
 	router.HandleFunc("/login", serverResources.WithResources(user.GetUserByEmailHandler)).
-	Methods("POST")
+		Methods("POST")
 
 	router.HandleFunc("/users/{id}/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler)).
-	Methods("GET")
+		Methods("GET")
 
 	router.HandleFunc("/messages", serverResources.WithResources(message.PostMessageHandler)).
-	Methods("POST")
+		Methods("POST")
 
 	router.HandleFunc("/chats", serverResources.WithResources(chat.PostChatHandler)).
-	Methods("POST")
+		Methods("POST")
 
 	router.HandleFunc("/chats/{id}/messages", serverResources.WithResources(message.GetMessagesByChatIdHandler)).
-	Queries("page", "{page:[0-9]+}").Methods("GET")
+		Queries("page", "{page:[0-9]+}").Methods("GET")
 
-	// http.HandleFunc("/chat", chatHandler(chatServer))
+	router.HandleFunc("/users/{user_id}/connect/{chat_id}", chatServer.UpgraderHandler).
+		Methods("GET")
 
-	// chatServer := setupChatServer()
+	chatServer.ListenAndServe()
 	setupServer(router)
 }
 
@@ -70,30 +77,6 @@ func setupDatabase() *db.Queries {
 	queries := db.New(connection)
 
 	return queries
-}
-
-func setupChatServer() *chatserver.ChatServer {
-	chatServer := chatserver.ChatServer{
-		Messages:          make(chan []byte),
-		ConnectionUpdates: make(chan chatserver.ConnectionUpdate),
-	}
-
-	go func() {
-		for {
-			select {
-			case message := <-chatServer.Messages:
-				chatServer.WriteMessage(message)
-			case connectionUpdate := <-chatServer.ConnectionUpdates:
-				if connectionUpdate.Register {
-					chatServer.AddConnection(connectionUpdate.Connection)
-				} else {
-					chatServer.RemoveConnection(connectionUpdate.Connection)
-				}
-			}
-		}
-	}()
-
-	return &chatServer
 }
 
 func setupServer(router *mux.Router) {
@@ -116,21 +99,5 @@ func setupServer(router *mux.Router) {
 
 	if err != nil {
 		log.Fatal("Could not start server", err)
-	}
-}
-
-func chatHandler(chat *chatserver.ChatServer) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		connection, err := upgrader.Upgrade(writer, request, nil)
-
-		if err != nil {
-			log.Println("Could not upgrade request: ", err)
-			return
-		}
-
-		chat.ConnectionUpdates <- chatserver.ConnectionUpdate{
-			Connection: connection,
-			Register:   true,
-		}
 	}
 }
