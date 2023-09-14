@@ -15,7 +15,7 @@ import (
 var upgrader = websocket.Upgrader{}
 
 type ChatServer struct {
-	connections       []*websocket.Conn
+	connections       []ChatConnection
 	Resources         *server.ServerResources
 	IncomingMessages  chan IncomingMessage
 	ConnectionUpdates chan ConnectionUpdate
@@ -96,7 +96,10 @@ func (chat *ChatServer) UpgraderHandler(writer http.ResponseWriter, request *htt
 func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
 	log.Printf("Registering connection %v ...\n", connectionUpdate.Connection.RemoteAddr())
 
-	chat.connections = append(chat.connections, connectionUpdate.Connection)
+	chat.connections = append(chat.connections, ChatConnection{
+		Connection: connectionUpdate.Connection,
+		ChatID:     connectionUpdate.ChatID,
+	})
 
 	go func() {
 		for {
@@ -144,10 +147,10 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 	if last == 0 {
 		log.Println("Cleaning connections... ")
 
-		chat.connections = []*websocket.Conn{}
+		chat.connections = []ChatConnection{}
 	} else {
 		for i, conn := range chat.connections {
-			if conn == connection {
+			if conn.Connection == connection {
 				index = i
 				break
 			}
@@ -170,16 +173,15 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 }
 
 func (chat *ChatServer) WriteMessage(incomingMessage IncomingMessage) {
-	log.Println("WriteMessage...")
-	for _, connection := range chat.connections {
-		err := connection.WriteMessage(websocket.TextMessage, incomingMessage.Message)
+	for _, conn := range chat.connections {
+		if conn.ChatID == incomingMessage.ChatID {
+			err := conn.Connection.WriteMessage(websocket.TextMessage, incomingMessage.Message)
 
-		if err != nil {
-			log.Println("Error writing message:", err)
-		} else {
-			messageText := fmt.Sprintf("%s", incomingMessage.Message)
-
-			log.Println("Message sent: ", messageText)
+			if err != nil {
+				log.Printf("Error writing message to chat %v\n", incomingMessage.ChatID)
+			} else {
+				log.Printf("Message %s was sent to connection %v of chat %v\n", incomingMessage.Message, conn.Connection.RemoteAddr() ,incomingMessage.ChatID)
+			}
 		}
 	}
 }
