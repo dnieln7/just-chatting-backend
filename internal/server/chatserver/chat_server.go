@@ -144,7 +144,7 @@ func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
 }
 
 func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
-	log.Printf("Unregistering connection %v ...\n", connection.RemoteAddr())
+	log.Println("Unregistering connection...")
 
 	var index = -1
 	var last = len(chat.connections) - 1
@@ -184,10 +184,12 @@ func (chat *ChatServer) BroadcastMessage(incomingMessage IncomingMessage) {
 		log.Printf("Error finding participants fo chat %v: %v\n", incomingMessage.ChatID, err)
 	}
 
+	participants = helpers.RemoveUUID(participants, incomingMessage.UserID)
+
 	log.Printf("Writing message to chat %v...\n", incomingMessage.ChatID)
 
 	for _, conn := range chat.connections {
-		if conn.ChatID == incomingMessage.ChatID {
+		if conn.ChatID == incomingMessage.ChatID && conn.UserID != incomingMessage.UserID {
 			err := conn.Connection.WriteMessage(websocket.TextMessage, incomingMessage.Message)
 
 			if err != nil {
