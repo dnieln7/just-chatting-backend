@@ -16,3 +16,6 @@ SELECT * FROM tb_chats WHERE participants @> $1 LIMIT 1;
 
 -- name: GetChatById :one
 SELECT * FROM tb_chats WHERE id = $1;
+
+-- name: GetParticipantsByChatId :one
+SELECT participants FROM tb_chats WHERE id = $1;

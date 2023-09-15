@@ -7,5 +7,6 @@ import (
 
 type ChatConnection struct {
 	Connection *websocket.Conn
-	ChatID uuid.UUID
+	UserID     uuid.UUID
+	ChatID     uuid.UUID
 }

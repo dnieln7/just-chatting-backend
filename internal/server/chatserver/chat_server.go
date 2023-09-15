@@ -1,9 +1,12 @@
 package chatserver
 
 import (
+	"context"
 	"fmt"
+	"github.com/dnieln7/just-chatting/internal/database/db"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/dnieln7/just-chatting/internal/helpers"
 	"github.com/dnieln7/just-chatting/internal/server"
@@ -26,7 +29,8 @@ func (chat *ChatServer) ListenAndServe() {
 		for {
 			select {
 			case incomingMessage := <-chat.IncomingMessages:
-				chat.WriteMessage(incomingMessage)
+				chat.BroadcastMessage(incomingMessage)
+				SaveMessage(chat.Resources.PostgresDb, incomingMessage)
 			case connectionUpdate := <-chat.ConnectionUpdates:
 				if connectionUpdate.Register {
 					chat.AddConnectionUpdate(connectionUpdate)
@@ -98,6 +102,7 @@ func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
 
 	chat.connections = append(chat.connections, ChatConnection{
 		Connection: connectionUpdate.Connection,
+		UserID:     connectionUpdate.UserID,
 		ChatID:     connectionUpdate.ChatID,
 	})
 
@@ -145,7 +150,7 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 	var last = len(chat.connections) - 1
 
 	if last == 0 {
-		log.Println("Cleaning connections... ")
+		log.Println("Removing connection... ", connection.RemoteAddr(), " at index: 0")
 
 		chat.connections = []ChatConnection{}
 	} else {
@@ -165,14 +170,22 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 
 			chat.connections = chat.connections[:last]
 		}
-
-		log.Println("Connection removed, remaining connections: ", len(chat.connections))
 	}
+
+	log.Println("Connection removed, remaining connections: ", len(chat.connections))
 
 	connection.Close()
 }
 
-func (chat *ChatServer) WriteMessage(incomingMessage IncomingMessage) {
+func (chat *ChatServer) BroadcastMessage(incomingMessage IncomingMessage) {
+	participants, err := chat.Resources.PostgresDb.GetParticipantsByChatId(context.Background(), incomingMessage.ChatID)
+
+	if err != nil {
+		log.Printf("Error finding participants fo chat %v: %v\n", incomingMessage.ChatID, err)
+	}
+
+	log.Printf("Writing message to chat %v...\n", incomingMessage.ChatID)
+
 	for _, conn := range chat.connections {
 		if conn.ChatID == incomingMessage.ChatID {
 			err := conn.Connection.WriteMessage(websocket.TextMessage, incomingMessage.Message)
@@ -180,8 +193,31 @@ func (chat *ChatServer) WriteMessage(incomingMessage IncomingMessage) {
 			if err != nil {
 				log.Printf("Error writing message to chat %v\n", incomingMessage.ChatID)
 			} else {
-				log.Printf("Message %s was sent to connection %v of chat %v\n", incomingMessage.Message, conn.Connection.RemoteAddr() ,incomingMessage.ChatID)
+				log.Printf("A message was sent to connection %v of chat %v\n", conn.Connection.RemoteAddr(), incomingMessage.ChatID)
+
+				participants = helpers.RemoveUUID(participants, conn.UserID)
 			}
 		}
+	}
+
+	log.Printf("Participants of chat %v without a connection or with a write error %d\n", incomingMessage.ChatID, len(participants))
+}
+
+func SaveMessage(postgresDb *db.Queries, incomingMessage IncomingMessage) {
+	messageText := fmt.Sprintf("%s", incomingMessage.Message)
+
+	_, err := postgresDb.CreateMessage(context.Background(), db.CreateMessageParams{
+		ID:        uuid.New(),
+		ChatID:    incomingMessage.ChatID,
+		UserID:    incomingMessage.UserID,
+		Message:   messageText,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	if err != nil {
+		log.Printf("Error saving message to chat %v: %v\n", incomingMessage.ChatID, err)
+	} else {
+		log.Printf("Saved message to chat %v\n", incomingMessage.ChatID)
 	}
 }

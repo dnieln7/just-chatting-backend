@@ -111,3 +111,14 @@ func (q *Queries) GetChatsByParticipantId(ctx context.Context, participants []uu
 	}
 	return items, nil
 }
+
+const getParticipantsByChatId = `-- name: GetParticipantsByChatId :one
+SELECT participants FROM tb_chats WHERE id = $1
+`
+
+func (q *Queries) GetParticipantsByChatId(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getParticipantsByChatId, id)
+	var participants []uuid.UUID
+	err := row.Scan(pq.Array(&participants))
+	return participants, err
+}
