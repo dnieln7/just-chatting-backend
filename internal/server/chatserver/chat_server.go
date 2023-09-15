@@ -33,9 +33,9 @@ func (chat *ChatServer) ListenAndServe() {
 				SaveMessage(chat.Resources.PostgresDb, incomingMessage)
 			case connectionUpdate := <-chat.ConnectionUpdates:
 				if connectionUpdate.Register {
-					chat.AddConnectionUpdate(connectionUpdate)
+					chat.RegisterConnection(connectionUpdate)
 				} else {
-					chat.RemoveConnection(connectionUpdate.Connection)
+					chat.UnregisterConnection(connectionUpdate.Connection)
 				}
 			}
 		}
@@ -97,7 +97,7 @@ func (chat *ChatServer) UpgraderHandler(writer http.ResponseWriter, request *htt
 	}
 }
 
-func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
+func (chat *ChatServer) RegisterConnection(connectionUpdate ConnectionUpdate) {
 	log.Printf("Registering connection %v ...\n", connectionUpdate.Connection.RemoteAddr())
 
 	chat.connections = append(chat.connections, ChatConnection{
@@ -114,7 +114,7 @@ func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
 				closeErr, ok := err.(*websocket.CloseError)
 
 				if ok {
-					log.Println("Close frame received, clossing...", closeErr)
+					log.Println("Close frame received, closing...", closeErr)
 
 					chat.ConnectionUpdates <- ConnectionUpdate{
 						Connection: connectionUpdate.Connection,
@@ -143,14 +143,14 @@ func (chat *ChatServer) AddConnectionUpdate(connectionUpdate ConnectionUpdate) {
 	}()
 }
 
-func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
+func (chat *ChatServer) UnregisterConnection(connection *websocket.Conn) {
 	log.Println("Unregistering connection...")
 
 	var index = -1
 	var last = len(chat.connections) - 1
 
 	if last == 0 {
-		log.Println("Removing connection... ", connection.RemoteAddr(), " at index: 0")
+		log.Printf("Removing connection %v at index 0...\n", connection.RemoteAddr())
 
 		chat.connections = []ChatConnection{}
 	} else {
@@ -161,7 +161,7 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 			}
 		}
 
-		log.Println("Removing connection... ", connection.RemoteAddr(), " at index: ", index)
+		log.Printf("Removing connection %v at index %d...\n", connection.RemoteAddr(), index)
 
 		if index != -1 {
 			if index != last {
@@ -172,9 +172,13 @@ func (chat *ChatServer) RemoveConnection(connection *websocket.Conn) {
 		}
 	}
 
-	log.Println("Connection removed, remaining connections: ", len(chat.connections))
+	log.Printf("Connection removed, remaining connections %d\n", len(chat.connections))
 
-	connection.Close()
+	err := connection.Close()
+
+	if err != nil {
+		log.Printf("Error closing connection %v: %v\n", connection.RemoteAddr(), err)
+	}
 }
 
 func (chat *ChatServer) BroadcastMessage(incomingMessage IncomingMessage) {
