@@ -2,9 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"github.com/dnieln7/just-chatting/internal/env"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
@@ -14,61 +14,31 @@ import (
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/dnieln7/just-chatting/internal/server/chatserver"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-var upgrader = websocket.Upgrader{}
-
 func main() {
-	godotenv.Load()
+	properties := env.GetEnvProperties()
 
-	serverResources := server.ServerResources{
-		PostgresDb: setupDatabase(),
+	resources := &server.ServerResources{
+		PostgresDb: buildDatabase(properties),
 	}
 
-	chatServer := chatserver.ChatServer{
-		Resources:         &serverResources,
-		IncomingMessages:  make(chan chatserver.IncomingMessage),
-		ConnectionUpdates: make(chan chatserver.ConnectionUpdate),
-	}
+	router := buildRouter(resources)
 
-	router := mux.NewRouter()
-
-	router.HandleFunc("/signup", serverResources.WithResources(user.PostUserHandler)).
-		Methods("POST")
-
-	router.HandleFunc("/login", serverResources.WithResources(user.GetUserByEmailHandler)).
-		Methods("POST")
-
-	router.HandleFunc("/users/{id}/chats", serverResources.WithResources(chat.GetChatsByParticipantIdHandler)).
-		Methods("GET")
-
-	router.HandleFunc("/messages", serverResources.WithResources(message.PostMessageHandler)).
-		Methods("POST")
-
-	router.HandleFunc("/chats", serverResources.WithResources(chat.PostChatHandler)).
-		Methods("POST")
-
-	router.HandleFunc("/chats/{id}/messages", serverResources.WithResources(message.GetMessagesByChatIdHandler)).
-		Queries("page", "{page:[0-9]+}").Methods("GET")
-
-	router.HandleFunc("/users/{user_id}/connect/{chat_id}", chatServer.UpgraderHandler).
-		Methods("GET")
+	chatServer := buildChatServer(resources, router)
+	httpServer := buildHttpServer(properties, router)
 
 	chatServer.ListenAndServe()
-	setupServer(router)
+	err := httpServer.ListenAndServe()
+
+	if err != nil {
+		log.Fatal("Could not start server", err)
+	}
 }
 
-func setupDatabase() *db.Queries {
-	dbUrl := os.Getenv("DB_URL")
-
-	if dbUrl == "" {
-		log.Fatal("DB_URL not found")
-	}
-
-	connection, err := sql.Open("postgres", dbUrl)
+func buildDatabase(properties *env.EvnProperties) *db.Queries {
+	connection, err := sql.Open("postgres", properties.PostgresUrl)
 
 	if err != nil {
 		log.Fatal("Could not connect to database")
@@ -79,25 +49,49 @@ func setupDatabase() *db.Queries {
 	return queries
 }
 
-func setupServer(router *mux.Router) {
-	port := os.Getenv("PORT")
-
-	if port == "" {
-		log.Fatal("PORT not found")
-	} else {
-		log.Println("Starting server on port: ", port, "...")
+func buildChatServer(resources *server.ServerResources, router *mux.Router) *chatserver.ChatServer {
+	chatServer := &chatserver.ChatServer{
+		Resources:         resources,
+		IncomingMessages:  make(chan chatserver.IncomingMessage),
+		ConnectionUpdates: make(chan chatserver.ConnectionUpdate),
 	}
 
-	server := &http.Server{
+	router.HandleFunc("/users/{user_id}/connect/{chat_id}", chatServer.UpgraderHandler).
+		Methods("GET")
+
+	return chatServer
+}
+
+func buildRouter(resources *server.ServerResources) *mux.Router {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/signup", resources.WithResources(user.PostUserHandler)).
+		Methods("POST")
+
+	router.HandleFunc("/login", resources.WithResources(user.GetUserByEmailHandler)).
+		Methods("POST")
+
+	router.HandleFunc("/users/{id}/chats", resources.WithResources(chat.GetChatsByParticipantIdHandler)).
+		Methods("GET")
+
+	router.HandleFunc("/messages", resources.WithResources(message.PostMessageHandler)).
+		Methods("POST")
+
+	router.HandleFunc("/chats", resources.WithResources(chat.PostChatHandler)).
+		Methods("POST")
+
+	router.HandleFunc("/chats/{id}/messages", resources.WithResources(message.GetMessagesByChatIdHandler)).
+		Queries("page", "{page:[0-9]+}").Methods("GET")
+
+	return router
+}
+func buildHttpServer(properties *env.EvnProperties, router *mux.Router) *http.Server {
+	httpServer := &http.Server{
 		Handler:      router,
-		Addr:         "127.0.0.1:" + port,
+		Addr:         "127.0.0.1:" + properties.Port,
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
 
-	err := server.ListenAndServe()
-
-	if err != nil {
-		log.Fatal("Could not start server", err)
-	}
+	return httpServer
 }
