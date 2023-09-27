@@ -19,7 +19,7 @@ type PostMessageBody struct {
 }
 
 // TODO: only participants should be able to send messages
-func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
+func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	decoder := json.NewDecoder(request.Body)
 	body := PostMessageBody{}
 	err := decoder.Decode(&body)

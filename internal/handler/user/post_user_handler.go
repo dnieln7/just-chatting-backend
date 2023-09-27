@@ -18,7 +18,7 @@ type PostUserBody struct {
 	Username string `json:"username"`
 }
 
-func PostUserHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
+func PostUserHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	decoder := json.NewDecoder(request.Body)
 	body := PostUserBody{}
 	err := decoder.Decode(&body)

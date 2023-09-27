@@ -19,7 +19,7 @@ var upgrader = websocket.Upgrader{}
 
 type ChatServer struct {
 	connections       []ChatConnection
-	Resources         *server.ServerResources
+	Resources         *server.Resources
 	IncomingMessages  chan IncomingMessage
 	ConnectionUpdates chan ConnectionUpdate
 }

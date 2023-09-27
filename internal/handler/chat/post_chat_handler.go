@@ -16,7 +16,7 @@ type PostChatBody struct {
 	Participants []string `json:"participants"`
 }
 
-func PostChatHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
+func PostChatHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	decoder := json.NewDecoder(request.Body)
 	body := PostChatBody{}
 	err := decoder.Decode(&body)

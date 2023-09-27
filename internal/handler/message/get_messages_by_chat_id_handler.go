@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
+func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	vars := mux.Vars(request)
 	stringUUID := vars["id"]
 	stringPage := vars["page"]

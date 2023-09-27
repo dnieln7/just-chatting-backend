@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
+func GetChatsByParticipantIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	vars := mux.Vars(request)
 	stringUUID := vars["id"]
 

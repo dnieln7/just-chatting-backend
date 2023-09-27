@@ -14,7 +14,7 @@ type GetUserByEmailBody struct {
 	Password string `json:"password"`
 }
 
-func GetUserByEmailHandler(writer http.ResponseWriter, request *http.Request, resources *server.ServerResources) {
+func GetUserByEmailHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	decoder := json.NewDecoder(request.Body)
 	body := GetUserByEmailBody{}
 	err := decoder.Decode(&body)

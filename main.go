@@ -20,7 +20,7 @@ import (
 func main() {
 	properties := env.GetEnvProperties()
 
-	resources := &server.ServerResources{
+	resources := &server.Resources{
 		PostgresDb: buildDatabase(properties),
 	}
 
@@ -49,7 +49,7 @@ func buildDatabase(properties *env.EvnProperties) *db.Queries {
 	return queries
 }
 
-func buildChatServer(resources *server.ServerResources, router *mux.Router) *chatserver.ChatServer {
+func buildChatServer(resources *server.Resources, router *mux.Router) *chatserver.ChatServer {
 	chatServer := &chatserver.ChatServer{
 		Resources:         resources,
 		IncomingMessages:  make(chan chatserver.IncomingMessage),
@@ -62,25 +62,25 @@ func buildChatServer(resources *server.ServerResources, router *mux.Router) *cha
 	return chatServer
 }
 
-func buildRouter(resources *server.ServerResources) *mux.Router {
+func buildRouter(resources *server.Resources) *mux.Router {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/signup", resources.WithResources(user.PostUserHandler)).
+	router.HandleFunc("/signup", resources.HttpHandler(user.PostUserHandler)).
 		Methods("POST")
 
-	router.HandleFunc("/login", resources.WithResources(user.GetUserByEmailHandler)).
+	router.HandleFunc("/login", resources.HttpHandler(user.GetUserByEmailHandler)).
 		Methods("POST")
 
-	router.HandleFunc("/users/{id}/chats", resources.WithResources(chat.GetChatsByParticipantIdHandler)).
+	router.HandleFunc("/users/{id}/chats", resources.HttpHandler(chat.GetChatsByParticipantIdHandler)).
 		Methods("GET")
 
-	router.HandleFunc("/messages", resources.WithResources(message.PostMessageHandler)).
+	router.HandleFunc("/messages", resources.HttpHandler(message.PostMessageHandler)).
 		Methods("POST")
 
-	router.HandleFunc("/chats", resources.WithResources(chat.PostChatHandler)).
+	router.HandleFunc("/chats", resources.HttpHandler(chat.PostChatHandler)).
 		Methods("POST")
 
-	router.HandleFunc("/chats/{id}/messages", resources.WithResources(message.GetMessagesByChatIdHandler)).
+	router.HandleFunc("/chats/{id}/messages", resources.HttpHandler(message.GetMessagesByChatIdHandler)).
 		Queries("page", "{page:[0-9]+}").Methods("GET")
 
 	return router
