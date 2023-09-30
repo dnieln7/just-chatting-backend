@@ -13,9 +13,9 @@ import (
 )
 
 type PostMessageBody struct {
-	ChatID  string `json:"chat_id"`
-	UserID  string `json:"user_id"`
-	Message string `json:"message"`
+	ChatID  uuid.UUID `json:"chat_id"`
+	UserID  uuid.UUID `json:"user_id"`
+	Message string    `json:"message"`
 }
 
 // TODO: only participants should be able to send messages
@@ -30,26 +30,10 @@ func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resou
 		return
 	}
 
-	chatID, err := uuid.Parse(body.ChatID)
-
-	if err != nil {
-		errMessage := fmt.Sprintf("Could not parse ChatID: %v", body.ChatID)
-		helpers.ResponseJsonError(writer, 400, errMessage)
-		return
-	}
-
-	userID, err := uuid.Parse(body.UserID)
-
-	if err != nil {
-		errMessage := fmt.Sprintf("Could not parse UserID: %v", body.UserID)
-		helpers.ResponseJsonError(writer, 400, errMessage)
-		return
-	}
-
 	dbMessage, err := resources.PostgresDb.CreateMessage(request.Context(), db.CreateMessageParams{
 		ID:        uuid.New(),
-		ChatID:    chatID,
-		UserID:    userID,
+		ChatID:    body.ChatID,
+		UserID:    body.UserID,
 		Message:   body.Message,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

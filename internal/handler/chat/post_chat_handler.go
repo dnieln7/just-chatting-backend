@@ -13,7 +13,7 @@ import (
 )
 
 type PostChatBody struct {
-	Participants []string `json:"participants"`
+	Participants []uuid.UUID `json:"participants"`
 }
 
 func PostChatHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
@@ -27,21 +27,7 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 		return
 	}
 
-	participants := []uuid.UUID{}
-
-	for _, stringUUID := range body.Participants {
-		participant, err := uuid.Parse(stringUUID)
-
-		if err != nil {
-			errMessage := fmt.Sprintf("Could not parse UUID: %v", stringUUID)
-			helpers.ResponseJsonError(writer, 400, errMessage)
-			return
-		}
-
-		participants = append(participants, participant)
-	}
-
-	existingDbChat, err := resources.PostgresDb.GetChatWithParticipants(request.Context(), participants)
+	existingDbChat, err := resources.PostgresDb.GetChatWithParticipants(request.Context(), body.Participants)
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not create chat: %v", err)
@@ -56,7 +42,7 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 
 	dbChat, err := resources.PostgresDb.CreateChat(request.Context(), db.CreateChatParams{
 		ID:           uuid.New(),
-		Participants: participants,
+		Participants: body.Participants,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	})
