@@ -6,6 +6,16 @@ import (
 	"net/http"
 )
 
+func ResponseOK(writer http.ResponseWriter) {
+	writer.WriteHeader(200)
+	writer.Write([]byte{})
+}
+
+func ResponseNoContent(writer http.ResponseWriter) {
+	writer.WriteHeader(204)
+	writer.Write([]byte{})
+}
+
 func ResponseJson(writer http.ResponseWriter, code int, payload interface{}) {
 	bytes, err := json.Marshal(payload)
 
@@ -27,12 +37,12 @@ func ResponseJsonError(writer http.ResponseWriter, code int, message string) {
 	}
 
 	ResponseJson(writer, code, errorResponse{
-		Code: code,
+		Code:    code,
 		Message: message,
 	})
 }
 
 type errorResponse struct {
-	Code int `json:"code"`
+	Code    int    `json:"code"`
 	Message string `json:"message"`
 }

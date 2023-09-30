@@ -55,40 +55,6 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (T
 	return i, err
 }
 
-const getMessagesByChatId = `-- name: GetMessagesByChatId :many
-SELECT id, chat_id, user_id, message, created_at, updated_at FROM tb_messages WHERE chat_id = $1 ORDER BY created_at DESC
-`
-
-func (q *Queries) GetMessagesByChatId(ctx context.Context, chatID uuid.UUID) ([]TbMessage, error) {
-	rows, err := q.db.QueryContext(ctx, getMessagesByChatId, chatID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []TbMessage
-	for rows.Next() {
-		var i TbMessage
-		if err := rows.Scan(
-			&i.ID,
-			&i.ChatID,
-			&i.UserID,
-			&i.Message,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getMessagesByChatIdLazy = `-- name: GetMessagesByChatIdLazy :many
 SELECT id, chat_id, user_id, message, created_at, updated_at FROM tb_messages WHERE chat_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
 `

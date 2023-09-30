@@ -5,16 +5,70 @@
 package db
 
 import (
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type FriendshipStatus string
+
+const (
+	FriendshipStatusPending  FriendshipStatus = "pending"
+	FriendshipStatusAccepted FriendshipStatus = "accepted"
+)
+
+func (e *FriendshipStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = FriendshipStatus(s)
+	case string:
+		*e = FriendshipStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for FriendshipStatus: %T", src)
+	}
+	return nil
+}
+
+type NullFriendshipStatus struct {
+	FriendshipStatus FriendshipStatus
+	Valid            bool // Valid is true if FriendshipStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullFriendshipStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.FriendshipStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.FriendshipStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullFriendshipStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.FriendshipStatus), nil
+}
 
 type TbChat struct {
 	ID           uuid.UUID
 	Participants []uuid.UUID
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type TbFriendship struct {
+	ID        uuid.UUID
+	CreatorID uuid.UUID
+	UserID    uuid.UUID
+	FriendID  uuid.UUID
+	Status    FriendshipStatus
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type TbMessage struct {

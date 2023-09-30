@@ -10,8 +10,5 @@ INSERT INTO tb_messages (
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
--- name: GetMessagesByChatId :many
-SELECT * FROM tb_messages WHERE chat_id = $1 ORDER BY created_at DESC;
-
 -- name: GetMessagesByChatIdLazy :many
 SELECT * FROM tb_messages WHERE chat_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"github.com/dnieln7/just-chatting/internal/env"
+	"github.com/dnieln7/just-chatting/internal/handler/friendship"
 	"log"
 	"net/http"
 	"time"
@@ -20,8 +21,11 @@ import (
 func main() {
 	properties := env.GetEnvProperties()
 
+	connectionDb, postgresDb := buildDatabase(properties)
+
 	resources := &server.Resources{
-		PostgresDb: buildDatabase(properties),
+		ConnectionDb: connectionDb,
+		PostgresDb:   postgresDb,
 	}
 
 	router := buildRouter(resources)
@@ -37,16 +41,16 @@ func main() {
 	}
 }
 
-func buildDatabase(properties *env.EvnProperties) *db.Queries {
-	connection, err := sql.Open("postgres", properties.PostgresUrl)
+func buildDatabase(properties *env.EvnProperties) (connectionDb *sql.DB, postgresDb *db.Queries) {
+	connectionDb, err := sql.Open("postgres", properties.PostgresUrl)
 
 	if err != nil {
 		log.Fatal("Could not connect to database")
 	}
 
-	queries := db.New(connection)
+	postgresDb = db.New(connectionDb)
 
-	return queries
+	return connectionDb, postgresDb
 }
 
 func buildChatServer(resources *server.Resources, router *mux.Router) *chatserver.ChatServer {
@@ -73,6 +77,21 @@ func buildRouter(resources *server.Resources) *mux.Router {
 
 	router.HandleFunc("/users/{id}/chats", resources.HttpHandler(chat.GetChatsByParticipantIdHandler)).
 		Methods("GET")
+
+	router.HandleFunc("/users/{id}/friendships", resources.HttpHandler(friendship.GetFriendsHandler)).
+		Methods("GET")
+
+	router.HandleFunc("/users/{id}/pending-friendships", resources.HttpHandler(friendship.GetPendingFriendsHandler)).
+		Methods("GET")
+
+	router.HandleFunc("/friendships", resources.HttpHandler(friendship.PostFriendshipHandler)).
+		Methods("POST")
+
+	router.HandleFunc("/friendships/{user_id}/{friend_id}", resources.HttpHandler(friendship.DeleteFriendshipHandler)).
+		Methods("DELETE")
+
+	router.HandleFunc("/accept-friendship", resources.HttpHandler(friendship.AcceptFriendshipHandler)).
+		Methods("POST")
 
 	router.HandleFunc("/messages", resources.HttpHandler(message.PostMessageHandler)).
 		Methods("POST")

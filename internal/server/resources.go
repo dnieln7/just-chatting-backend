@@ -1,13 +1,15 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
 )
 
 type Resources struct {
-	PostgresDb *db.Queries
+	ConnectionDb *sql.DB
+	PostgresDb   *db.Queries
 }
 
 type ResourcesHandlerFunc func(writer http.ResponseWriter, request *http.Request, resources *Resources)
