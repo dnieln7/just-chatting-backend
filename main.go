@@ -33,6 +33,8 @@ func main() {
 	chatServer := buildChatServer(resources, router)
 	httpServer := buildHttpServer(properties, router)
 
+	log.Println("Server will start on port: ", properties.Port)
+
 	chatServer.ListenAndServe()
 	err := httpServer.ListenAndServe()
 
@@ -107,7 +109,7 @@ func buildRouter(resources *server.Resources) *mux.Router {
 func buildHttpServer(properties *env.EvnProperties, router *mux.Router) *http.Server {
 	httpServer := &http.Server{
 		Handler:      router,
-		Addr:         "127.0.0.1:" + properties.Port,
+		Addr:         "0.0.0.0:" + properties.Port,
 		WriteTimeout: 10 * time.Second,
 		ReadTimeout:  10 * time.Second,
 	}
