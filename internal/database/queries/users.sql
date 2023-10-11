@@ -12,3 +12,8 @@ RETURNING *;
 
 -- name: GetUserByEmail :one
 SELECT * FROM tb_users WHERE email = $1;
+
+-- name: CountUsersWithEmail :one
+SELECT count(*)
+FROM tb_users
+WHERE email = $1;

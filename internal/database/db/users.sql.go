@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countUsersWithEmail = `-- name: CountUsersWithEmail :one
+SELECT count(*) FROM tb_users WHERE email = $1
+`
+
+func (q *Queries) CountUsersWithEmail(ctx context.Context, email string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsersWithEmail, email)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO tb_users (
         id,

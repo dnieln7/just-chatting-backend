@@ -77,6 +77,9 @@ func buildRouter(resources *server.Resources) *mux.Router {
 	router.HandleFunc("/login", resources.HttpHandler(user.GetUserByEmailHandler)).
 		Methods("POST")
 
+	router.HandleFunc("/email/availability", resources.HttpHandler(user.IsEmailAvailableHandler)).
+		Methods("POST")
+
 	router.HandleFunc("/users/{id}/chats", resources.HttpHandler(chat.GetChatsByParticipantIdHandler)).
 		Methods("GET")
 
