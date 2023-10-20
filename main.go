@@ -74,11 +74,14 @@ func buildRouter(resources *server.Resources) *mux.Router {
 	router.HandleFunc("/signup", resources.HttpHandler(user.PostUserHandler)).
 		Methods("POST")
 
-	router.HandleFunc("/login", resources.HttpHandler(user.GetUserByEmailHandler)).
+	router.HandleFunc("/login", resources.HttpHandler(user.LoginHandler)).
 		Methods("POST")
 
 	router.HandleFunc("/email/availability", resources.HttpHandler(user.IsEmailAvailableHandler)).
 		Methods("POST")
+
+	router.HandleFunc("/users/{email}", resources.HttpHandler(user.GetUserByEmailHandler)).
+		Methods("GET")
 
 	router.HandleFunc("/users/{id}/chats", resources.HttpHandler(chat.GetChatsByParticipantIdHandler)).
 		Methods("GET")
