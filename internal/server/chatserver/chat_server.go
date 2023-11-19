@@ -73,7 +73,7 @@ func (chat *ChatServer) UpgraderHandler(writer http.ResponseWriter, request *htt
 		log.Printf("Chat %v found checking participants...\n", chatID)
 	}
 
-	isUserParticipant := helpers.ContainsUUID(dbChat.Participants, userID)
+	isUserParticipant := helpers.ContainsUUID([]uuid.UUID{dbChat.CreatorID, dbChat.FriendID}, userID)
 
 	if !isUserParticipant {
 		helpers.ResponseJsonError(writer, 401, "You are not a participant in this chat")
@@ -182,7 +182,8 @@ func (chat *ChatServer) UnregisterConnection(connection *websocket.Conn) {
 }
 
 func (chat *ChatServer) BroadcastMessage(incomingMessage IncomingMessage) {
-	participants, err := chat.Resources.PostgresDb.GetParticipantsByChatId(context.Background(), incomingMessage.ChatID)
+	dbChat, err := chat.Resources.PostgresDb.GetChatById(context.Background(), incomingMessage.ChatID)
+	participants := []uuid.UUID{dbChat.CreatorID, dbChat.FriendID}
 
 	if err != nil {
 		log.Printf("Error finding participants fo chat %v: %v\n", incomingMessage.ChatID, err)

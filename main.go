@@ -83,7 +83,7 @@ func buildRouter(resources *server.Resources) *mux.Router {
 	router.HandleFunc("/users/{email}", resources.HttpHandler(user.GetUserByEmailHandler)).
 		Methods("GET")
 
-	router.HandleFunc("/users/{id}/chats", resources.HttpHandler(chat.GetChatsByParticipantIdHandler)).
+	router.HandleFunc("/users/{id}/chats", resources.HttpHandler(chat.GetChatsOfUserHandler)).
 		Methods("GET")
 
 	router.HandleFunc("/users/{id}/friendships", resources.HttpHandler(friendship.GetFriendsHandler)).

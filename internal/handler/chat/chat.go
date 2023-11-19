@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/dnieln7/just-chatting/internal/database/db"
-	"github.com/dnieln7/just-chatting/internal/helpers"
 )
 
 type Chats struct {
@@ -12,17 +11,62 @@ type Chats struct {
 }
 
 type Chat struct {
-	ID           string    `json:"id"`
-	Participants []string  `json:"participants"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID        string      `json:"id"`
+	Me        Participant `json:"me"`
+	Creator   Participant `json:"creator"`
+	Friend    Participant `json:"friend"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
 }
 
-func dbChatToChat(dbChat db.TbChat) Chat {
+type Participant struct {
+	ID       string `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+}
+
+func chatsWithMeAsCreatorToChat(me db.TbUser, chat db.GetChatsByCreatorIdRow) Chat {
 	return Chat{
-		ID:           dbChat.ID.String(),
-		Participants: helpers.UUIDsToStrings(dbChat.Participants),
-		CreatedAt:    dbChat.CreatedAt,
-		UpdatedAt:    dbChat.UpdatedAt,
+		ID: chat.ChatID.String(),
+		Me: Participant{
+			ID:       me.ID.String(),
+			Email:    me.Email,
+			Username: me.Username,
+		},
+		Creator: Participant{
+			ID:       me.ID.String(),
+			Email:    me.Email,
+			Username: me.Username,
+		},
+		Friend: Participant{
+			ID:       chat.FriendID.String(),
+			Email:    chat.FriendEmail,
+			Username: chat.FriendUsername,
+		},
+		CreatedAt: chat.ChatCreatedAt,
+		UpdatedAt: chat.ChatUpdatedAt,
+	}
+}
+
+func chatsWithMeAsFriendToChat(me db.TbUser, chat db.GetChatsByFriendIdRow) Chat {
+	return Chat{
+		ID: chat.ChatID.String(),
+		Me: Participant{
+			ID:       me.ID.String(),
+			Email:    me.Email,
+			Username: me.Username,
+		},
+		Creator: Participant{
+			ID:       chat.CreatorID.String(),
+			Email:    chat.CreatorEmail,
+			Username: chat.CreatorUsername,
+		},
+		Friend: Participant{
+			ID:       chat.CreatorID.String(),
+			Email:    chat.CreatorEmail,
+			Username: chat.CreatorUsername,
+		},
+		CreatedAt: chat.ChatCreatedAt,
+		UpdatedAt: chat.ChatUpdatedAt,
 	}
 }

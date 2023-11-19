@@ -10,38 +10,39 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 const createChat = `-- name: CreateChat :one
-INSERT INTO tb_chats (
-        id,
-        participants,
-        created_at,
-        updated_at
-    )
-VALUES ($1, $2, $3, $4)
-RETURNING id, participants, created_at, updated_at
+INSERT INTO tb_chats (id,
+                      creator_id,
+                      friend_id,
+                      created_at,
+                      updated_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, creator_id, friend_id, created_at, updated_at
 `
 
 type CreateChatParams struct {
-	ID           uuid.UUID
-	Participants []uuid.UUID
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID        uuid.UUID
+	CreatorID uuid.UUID
+	FriendID  uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (TbChat, error) {
 	row := q.db.QueryRowContext(ctx, createChat,
 		arg.ID,
-		pq.Array(arg.Participants),
+		arg.CreatorID,
+		arg.FriendID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
 	var i TbChat
 	err := row.Scan(
 		&i.ID,
-		pq.Array(&i.Participants),
+		&i.CreatorID,
+		&i.FriendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -49,7 +50,9 @@ func (q *Queries) CreateChat(ctx context.Context, arg CreateChatParams) (TbChat,
 }
 
 const getChatById = `-- name: GetChatById :one
-SELECT id, participants, created_at, updated_at FROM tb_chats WHERE id = $1
+SELECT id, creator_id, friend_id, created_at, updated_at
+FROM tb_chats
+WHERE id = $1
 `
 
 func (q *Queries) GetChatById(ctx context.Context, id uuid.UUID) (TbChat, error) {
@@ -57,47 +60,80 @@ func (q *Queries) GetChatById(ctx context.Context, id uuid.UUID) (TbChat, error)
 	var i TbChat
 	err := row.Scan(
 		&i.ID,
-		pq.Array(&i.Participants),
+		&i.CreatorID,
+		&i.FriendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const getChatWithParticipants = `-- name: GetChatWithParticipants :one
-SELECT id, participants, created_at, updated_at FROM tb_chats WHERE participants @> $1 LIMIT 1
+const getChatWithCreatorAndFriend = `-- name: GetChatWithCreatorAndFriend :one
+SELECT id, creator_id, friend_id, created_at, updated_at
+FROM tb_chats
+WHERE (creator_id = $1 AND friend_id = $2)
+   OR (creator_id = $2 AND friend_id = $1)
+LIMIT 1
 `
 
-func (q *Queries) GetChatWithParticipants(ctx context.Context, participants []uuid.UUID) (TbChat, error) {
-	row := q.db.QueryRowContext(ctx, getChatWithParticipants, pq.Array(participants))
+type GetChatWithCreatorAndFriendParams struct {
+	CreatorID uuid.UUID
+	FriendID  uuid.UUID
+}
+
+func (q *Queries) GetChatWithCreatorAndFriend(ctx context.Context, arg GetChatWithCreatorAndFriendParams) (TbChat, error) {
+	row := q.db.QueryRowContext(ctx, getChatWithCreatorAndFriend, arg.CreatorID, arg.FriendID)
 	var i TbChat
 	err := row.Scan(
 		&i.ID,
-		pq.Array(&i.Participants),
+		&i.CreatorID,
+		&i.FriendID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const getChatsByParticipantId = `-- name: GetChatsByParticipantId :many
-SELECT id, participants, created_at, updated_at FROM tb_chats WHERE participants @> $1
+const getChatsByCreatorId = `-- name: GetChatsByCreatorId :many
+SELECT tb_chats.id         AS chat_id,
+       tb_chats.created_at AS chat_created_at,
+       tb_chats.updated_at AS chat_updated_at,
+       tb_chats.creator_id AS chat_creator_id,
+       tb_users.id         AS friend_id,
+       tb_users.email      AS friend_email,
+       tb_users.username   AS friend_username
+FROM tb_chats
+         JOIN tb_users ON tb_users.id = tb_chats.friend_id
+WHERE tb_chats.creator_id = $1
 `
 
-func (q *Queries) GetChatsByParticipantId(ctx context.Context, participants []uuid.UUID) ([]TbChat, error) {
-	rows, err := q.db.QueryContext(ctx, getChatsByParticipantId, pq.Array(participants))
+type GetChatsByCreatorIdRow struct {
+	ChatID         uuid.UUID
+	ChatCreatedAt  time.Time
+	ChatUpdatedAt  time.Time
+	ChatCreatorID  uuid.UUID
+	FriendID       uuid.UUID
+	FriendEmail    string
+	FriendUsername string
+}
+
+func (q *Queries) GetChatsByCreatorId(ctx context.Context, creatorID uuid.UUID) ([]GetChatsByCreatorIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getChatsByCreatorId, creatorID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []TbChat
+	var items []GetChatsByCreatorIdRow
 	for rows.Next() {
-		var i TbChat
+		var i GetChatsByCreatorIdRow
 		if err := rows.Scan(
-			&i.ID,
-			pq.Array(&i.Participants),
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.ChatID,
+			&i.ChatCreatedAt,
+			&i.ChatUpdatedAt,
+			&i.ChatCreatorID,
+			&i.FriendID,
+			&i.FriendEmail,
+			&i.FriendUsername,
 		); err != nil {
 			return nil, err
 		}
@@ -112,13 +148,89 @@ func (q *Queries) GetChatsByParticipantId(ctx context.Context, participants []uu
 	return items, nil
 }
 
-const getParticipantsByChatId = `-- name: GetParticipantsByChatId :one
-SELECT participants FROM tb_chats WHERE id = $1
+const getChatsByFriendId = `-- name: GetChatsByFriendId :many
+SELECT tb_chats.id         AS chat_id,
+       tb_chats.created_at AS chat_created_at,
+       tb_chats.updated_at AS chat_updated_at,
+       tb_chats.friend_id AS chat_friend_id,
+       tb_users.id         AS creator_id,
+       tb_users.email      AS creator_email,
+       tb_users.username   AS creator_username
+FROM tb_chats
+         JOIN tb_users ON tb_users.id = tb_chats.creator_id
+WHERE tb_chats.friend_id = $1
 `
 
-func (q *Queries) GetParticipantsByChatId(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
-	row := q.db.QueryRowContext(ctx, getParticipantsByChatId, id)
-	var participants []uuid.UUID
-	err := row.Scan(pq.Array(&participants))
-	return participants, err
+type GetChatsByFriendIdRow struct {
+	ChatID          uuid.UUID
+	ChatCreatedAt   time.Time
+	ChatUpdatedAt   time.Time
+	ChatFriendID    uuid.UUID
+	CreatorID       uuid.UUID
+	CreatorEmail    string
+	CreatorUsername string
+}
+
+func (q *Queries) GetChatsByFriendId(ctx context.Context, friendID uuid.UUID) ([]GetChatsByFriendIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getChatsByFriendId, friendID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetChatsByFriendIdRow
+	for rows.Next() {
+		var i GetChatsByFriendIdRow
+		if err := rows.Scan(
+			&i.ChatID,
+			&i.ChatCreatedAt,
+			&i.ChatUpdatedAt,
+			&i.ChatFriendID,
+			&i.CreatorID,
+			&i.CreatorEmail,
+			&i.CreatorUsername,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChatsByUserId = `-- name: GetChatsByUserId :many
+SELECT id, creator_id, friend_id, created_at, updated_at FROM tb_chats WHERE creator_id = $1 OR friend_id = $1
+`
+
+func (q *Queries) GetChatsByUserId(ctx context.Context, creatorID uuid.UUID) ([]TbChat, error) {
+	rows, err := q.db.QueryContext(ctx, getChatsByUserId, creatorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TbChat
+	for rows.Next() {
+		var i TbChat
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatorID,
+			&i.FriendID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

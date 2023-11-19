@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,7 +14,8 @@ import (
 )
 
 type PostChatBody struct {
-	Participants []uuid.UUID `json:"participants"`
+	CreatorID uuid.UUID `json:"creator_id"`
+	FriendID  uuid.UUID `json:"friend_id"`
 }
 
 func PostChatHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
@@ -27,30 +29,153 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 		return
 	}
 
-	existingDbChat, err := resources.PostgresDb.GetChatWithParticipants(request.Context(), body.Participants)
+	existingDbChat, err := resources.PostgresDb.GetChatWithCreatorAndFriend(request.Context(), db.GetChatWithCreatorAndFriendParams{
+		CreatorID: body.CreatorID,
+		FriendID:  body.FriendID,
+	})
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not create chat: %v", err)
-		helpers.ResponseJsonError(writer, 400, errMessage)
+
+		if errMessage != "Could not create chat: sql: no rows in result set" {
+			helpers.ResponseJsonError(writer, 400, errMessage)
+			return
+		}
+	}
+
+	existsWithMeAsCreator := existingDbChat.CreatorID == body.CreatorID && existingDbChat.FriendID == body.FriendID
+	existsWithMeAsFriend := existingDbChat.CreatorID == body.FriendID && existingDbChat.FriendID == body.CreatorID
+
+	if existsWithMeAsCreator {
+		errMessage, creator, friend := getCreatorAndFriend(resources.PostgresDb, request.Context(), body.CreatorID, body.FriendID)
+
+		if errMessage != "" {
+			helpers.ResponseJsonError(writer, 400, errMessage)
+			return
+		}
+
+		chat := Chat{
+			ID: existingDbChat.ID.String(),
+			Me: Participant{
+				ID:       creator.ID.String(),
+				Email:    creator.Email,
+				Username: creator.Username,
+			},
+			Creator: Participant{
+				ID:       creator.ID.String(),
+				Email:    creator.Email,
+				Username: creator.Username,
+			},
+			Friend: Participant{
+				ID:       friend.ID.String(),
+				Email:    friend.Email,
+				Username: friend.Username,
+			},
+			CreatedAt: existingDbChat.CreatedAt,
+			UpdatedAt: existingDbChat.UpdatedAt,
+		}
+
+		helpers.ResponseJson(writer, 409, chat)
 		return
 	}
 
-	if len(existingDbChat.Participants) != 0 {
-		helpers.ResponseJson(writer, 409, dbChatToChat(existingDbChat))
+	if existsWithMeAsFriend {
+		errMessage, creator, friend := getCreatorAndFriend(resources.PostgresDb, request.Context(), body.FriendID, body.CreatorID)
+
+		if errMessage != "" {
+			helpers.ResponseJsonError(writer, 400, errMessage)
+			return
+		}
+
+		chat := Chat{
+			ID: existingDbChat.ID.String(),
+			Me: Participant{
+				ID:       friend.ID.String(),
+				Email:    friend.Email,
+				Username: friend.Username,
+			},
+			Creator: Participant{
+				ID:       creator.ID.String(),
+				Email:    creator.Email,
+				Username: creator.Username,
+			},
+			Friend: Participant{
+				ID:       creator.ID.String(),
+				Email:    creator.Email,
+				Username: creator.Username,
+			},
+			CreatedAt: existingDbChat.CreatedAt,
+			UpdatedAt: existingDbChat.UpdatedAt,
+		}
+
+		helpers.ResponseJson(writer, 409, chat)
 		return
 	}
 
 	dbChat, err := resources.PostgresDb.CreateChat(request.Context(), db.CreateChatParams{
-		ID:           uuid.New(),
-		Participants: body.Participants,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:        uuid.New(),
+		CreatorID: body.CreatorID,
+		FriendID:  body.FriendID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	})
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not create chat: %v", err)
 		helpers.ResponseJsonError(writer, 400, errMessage)
 	} else {
-		helpers.ResponseJson(writer, 201, dbChatToChat(dbChat))
+		errMessage, creator, friend := getCreatorAndFriend(resources.PostgresDb, request.Context(), body.CreatorID, body.FriendID)
+
+		if errMessage != "" {
+			helpers.ResponseJsonError(writer, 400, errMessage)
+			return
+		}
+
+		chat := Chat{
+			ID: dbChat.ID.String(),
+			Me: Participant{
+				ID:       creator.ID.String(),
+				Email:    creator.Email,
+				Username: creator.Username,
+			},
+			Creator: Participant{
+				ID:       creator.ID.String(),
+				Email:    creator.Email,
+				Username: creator.Username,
+			},
+			Friend: Participant{
+				ID:       friend.ID.String(),
+				Email:    friend.Email,
+				Username: friend.Username,
+			},
+			CreatedAt: dbChat.CreatedAt,
+			UpdatedAt: dbChat.UpdatedAt,
+		}
+
+		helpers.ResponseJson(writer, 201, chat)
+		helpers.ResponseOK(writer)
 	}
+}
+
+func getCreatorAndFriend(
+	postgresDb *db.Queries,
+	context context.Context,
+	creatorID uuid.UUID,
+	friendID uuid.UUID,
+) (errMessage string, creator db.TbUser, friend db.TbUser) {
+	c, err := postgresDb.GetUserById(context, creatorID)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Could not find user: %v", err)
+		return errMessage, db.TbUser{}, db.TbUser{}
+	}
+
+	f, err := postgresDb.GetUserById(context, friendID)
+
+	if err != nil {
+		errMessage := fmt.Sprintf("Could not find user: %v", err)
+		return errMessage, db.TbUser{}, db.TbUser{}
+	}
+
+	return "", c, f
 }

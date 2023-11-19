@@ -13,7 +13,9 @@ import (
 )
 
 const countUsersWithEmail = `-- name: CountUsersWithEmail :one
-SELECT count(*) FROM tb_users WHERE email = $1
+SELECT count(*)
+FROM tb_users
+WHERE email = $1
 `
 
 func (q *Queries) CountUsersWithEmail(ctx context.Context, email string) (int64, error) {
@@ -72,6 +74,24 @@ SELECT id, email, password, username, created_at, updated_at FROM tb_users WHERE
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (TbUser, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i TbUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.Username,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserById = `-- name: GetUserById :one
+SELECT id, email, password, username, created_at, updated_at FROM tb_users WHERE id = $1
+`
+
+func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (TbUser, error) {
+	row := q.db.QueryRowContext(ctx, getUserById, id)
 	var i TbUser
 	err := row.Scan(
 		&i.ID,

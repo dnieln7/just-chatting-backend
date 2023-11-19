@@ -55,10 +55,11 @@ func (ns NullFriendshipStatus) Value() (driver.Value, error) {
 }
 
 type TbChat struct {
-	ID           uuid.UUID
-	Participants []uuid.UUID
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID        uuid.UUID
+	CreatorID uuid.UUID
+	FriendID  uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type TbFriendship struct {
