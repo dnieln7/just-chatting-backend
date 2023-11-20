@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -155,27 +154,4 @@ func PostChatHandler(writer http.ResponseWriter, request *http.Request, resource
 		helpers.ResponseJson(writer, 201, chat)
 		helpers.ResponseOK(writer)
 	}
-}
-
-func getCreatorAndFriend(
-	postgresDb *db.Queries,
-	context context.Context,
-	creatorID uuid.UUID,
-	friendID uuid.UUID,
-) (errMessage string, creator db.TbUser, friend db.TbUser) {
-	c, err := postgresDb.GetUserById(context, creatorID)
-
-	if err != nil {
-		errMessage := fmt.Sprintf("Could not find user: %v", err)
-		return errMessage, db.TbUser{}, db.TbUser{}
-	}
-
-	f, err := postgresDb.GetUserById(context, friendID)
-
-	if err != nil {
-		errMessage := fmt.Sprintf("Could not find user: %v", err)
-		return errMessage, db.TbUser{}, db.TbUser{}
-	}
-
-	return "", c, f
 }
