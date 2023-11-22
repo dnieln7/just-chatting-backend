@@ -75,7 +75,7 @@ func GetChatByIdHandler(writer http.ResponseWriter, request *http.Request, resou
 			UpdatedAt: dbChat.UpdatedAt,
 		}
 
-		helpers.ResponseJson(writer, 409, chat)
+		helpers.ResponseJson(writer, 200, chat)
 	} else {
 		chat := Chat{
 			ID: dbChat.ID.String(),
