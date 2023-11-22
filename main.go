@@ -113,6 +113,9 @@ func buildRouter(resources *server.Resources) *mux.Router {
 	router.HandleFunc("/chats/{id}/messages", resources.HttpHandler(message.GetMessagesByChatIdHandler)).
 		Queries("page", "{page:[0-9]+}").Methods("GET")
 
+	router.HandleFunc("/eager/chats/{id}/messages", resources.HttpHandler(message.GetMessagesByChatIdEagerHandler)).
+		Methods("GET")
+
 	return router
 }
 func buildHttpServer(properties *env.EvnProperties, router *mux.Router) *http.Server {

@@ -152,7 +152,7 @@ const getChatsByFriendId = `-- name: GetChatsByFriendId :many
 SELECT tb_chats.id         AS chat_id,
        tb_chats.created_at AS chat_created_at,
        tb_chats.updated_at AS chat_updated_at,
-       tb_chats.friend_id AS chat_friend_id,
+       tb_chats.friend_id  AS chat_friend_id,
        tb_users.id         AS creator_id,
        tb_users.email      AS creator_email,
        tb_users.username   AS creator_username
@@ -203,7 +203,10 @@ func (q *Queries) GetChatsByFriendId(ctx context.Context, friendID uuid.UUID) ([
 }
 
 const getChatsByUserId = `-- name: GetChatsByUserId :many
-SELECT id, creator_id, friend_id, created_at, updated_at FROM tb_chats WHERE creator_id = $1 OR friend_id = $1
+SELECT id, creator_id, friend_id, created_at, updated_at
+FROM tb_chats
+WHERE creator_id = $1
+   OR friend_id = $1
 `
 
 func (q *Queries) GetChatsByUserId(ctx context.Context, creatorID uuid.UUID) ([]TbChat, error) {

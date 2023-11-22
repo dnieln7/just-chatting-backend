@@ -2,20 +2,16 @@ package message
 
 import (
 	"fmt"
-	"net/http"
-	"strconv"
-
-	"github.com/dnieln7/just-chatting/internal/database/db"
 	"github.com/dnieln7/just-chatting/internal/helpers"
 	"github.com/dnieln7/just-chatting/internal/server"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"net/http"
 )
 
-func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
+func GetMessagesByChatIdEagerHandler(writer http.ResponseWriter, request *http.Request, resources *server.Resources) {
 	vars := mux.Vars(request)
 	stringUUID := vars["id"]
-	stringPage := vars["page"]
 
 	chatID, err := uuid.Parse(stringUUID)
 
@@ -25,26 +21,7 @@ func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 
-	page, _ := strconv.Atoi(stringPage)
-
-	if page < 1 {
-		helpers.ResponseJsonError(writer, 400, "Page is invalid")
-		return
-	}
-
-	dbMessages, err := resources.PostgresDb.GetMessagesByChatIdLazy(request.Context(), db.GetMessagesByChatIdLazyParams{
-		ChatID: chatID,
-		Limit:  pageSize,
-		Offset: int32((page - 1) * pageSize),
-	})
-
-	var hasNextPage bool
-
-	if len(dbMessages) < pageSize {
-		hasNextPage = false
-	} else {
-		hasNextPage = true
-	}
+	dbMessages, err := resources.PostgresDb.GetMessagesByChatIdEager(request.Context(), chatID)
 
 	if err != nil {
 		errMessage := fmt.Sprintf("Could not get messages: %v", err)
@@ -58,10 +35,8 @@ func GetMessagesByChatIdHandler(writer http.ResponseWriter, request *http.Reques
 
 		helpers.ResponseJson(writer, 200, Messages{
 			Data:        messages,
-			CurrentPage: page,
-			HasNextPage: hasNextPage,
+			CurrentPage: 1,
+			HasNextPage: false,
 		})
 	}
 }
-
-const pageSize = 100

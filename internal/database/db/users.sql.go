@@ -87,7 +87,9 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (TbUser, err
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, email, password, username, created_at, updated_at FROM tb_users WHERE id = $1
+SELECT id, email, password, username, created_at, updated_at
+FROM tb_users
+WHERE id = $1
 `
 
 func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (TbUser, error) {
