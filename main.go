@@ -62,7 +62,7 @@ func buildChatServer(resources *server.Resources, router *mux.Router) *chatserve
 		ConnectionUpdates: make(chan chatserver.ConnectionUpdate),
 	}
 
-	router.HandleFunc("/users/{user_id}/connect/{chat_id}", chatServer.UpgraderHandler).
+	router.HandleFunc("/users/{user_id}/connect/{chat_id}", chatServer.UpgradeHandler).
 		Methods("GET")
 
 	return chatServer

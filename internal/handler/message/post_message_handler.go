@@ -43,6 +43,6 @@ func PostMessageHandler(writer http.ResponseWriter, request *http.Request, resou
 		errMessage := fmt.Sprintf("Could not create message: %v", err)
 		helpers.ResponseJsonError(writer, 400, errMessage)
 	} else {
-		helpers.ResponseJson(writer, 201, dbMessageToMessage(dbMessage))
+		helpers.ResponseJson(writer, 201, DBMessageToMessage(dbMessage))
 	}
 }

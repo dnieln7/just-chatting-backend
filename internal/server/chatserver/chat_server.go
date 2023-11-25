@@ -2,8 +2,10 @@ package chatserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/dnieln7/just-chatting/internal/database/db"
+	"github.com/dnieln7/just-chatting/internal/handler/message"
 	"log"
 	"net/http"
 	"time"
@@ -29,8 +31,11 @@ func (chat *ChatServer) ListenAndServe() {
 		for {
 			select {
 			case incomingMessage := <-chat.IncomingMessages:
-				chat.BroadcastMessage(incomingMessage)
-				SaveMessage(chat.Resources.PostgresDb, incomingMessage)
+				dbMessage := SaveMessage(chat.Resources.PostgresDb, incomingMessage)
+
+				if dbMessage != nil {
+					chat.BroadcastMessage(*dbMessage)
+				}
 			case connectionUpdate := <-chat.ConnectionUpdates:
 				if connectionUpdate.Register {
 					chat.RegisterConnection(connectionUpdate)
@@ -42,7 +47,7 @@ func (chat *ChatServer) ListenAndServe() {
 	}()
 }
 
-func (chat *ChatServer) UpgraderHandler(writer http.ResponseWriter, request *http.Request) {
+func (chat *ChatServer) UpgradeHandler(writer http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	stringUserUUID := vars["user_id"]
 	stringChatUUID := vars["chat_id"]
@@ -108,10 +113,12 @@ func (chat *ChatServer) RegisterConnection(connectionUpdate ConnectionUpdate) {
 
 	go func() {
 		for {
-			messageType, message, err := connectionUpdate.Connection.ReadMessage()
+			messageType, messageData, err := connectionUpdate.Connection.ReadMessage()
 
 			if err != nil {
-				closeErr, ok := err.(*websocket.CloseError)
+				var closeErr *websocket.CloseError
+
+				ok := errors.As(err, &closeErr)
 
 				if ok {
 					log.Println("Close frame received, closing...", closeErr)
@@ -130,12 +137,12 @@ func (chat *ChatServer) RegisterConnection(connectionUpdate ConnectionUpdate) {
 				}
 			}
 
-			messageText := fmt.Sprintf("%s", message)
+			messageText := fmt.Sprintf("%s", messageData)
 
 			log.Println("Message received: ", messageText, " with type: ", messageType)
 
 			chat.IncomingMessages <- IncomingMessage{
-				Message: message,
+				Message: messageData,
 				UserID:  connectionUpdate.UserID,
 				ChatID:  connectionUpdate.ChatID,
 			}
@@ -181,7 +188,7 @@ func (chat *ChatServer) UnregisterConnection(connection *websocket.Conn) {
 	}
 }
 
-func (chat *ChatServer) BroadcastMessage(incomingMessage IncomingMessage) {
+func (chat *ChatServer) BroadcastIncomingMessage(incomingMessage IncomingMessage) {
 	dbChat, err := chat.Resources.PostgresDb.GetChatById(context.Background(), incomingMessage.ChatID)
 	participants := []uuid.UUID{dbChat.CreatorID, dbChat.FriendID}
 
@@ -210,10 +217,39 @@ func (chat *ChatServer) BroadcastMessage(incomingMessage IncomingMessage) {
 	log.Printf("Participants of chat %v without a connection or with a write error %d\n", incomingMessage.ChatID, len(participants))
 }
 
-func SaveMessage(postgresDb *db.Queries, incomingMessage IncomingMessage) {
+func (chat *ChatServer) BroadcastMessage(dbMessage db.TbMessage) {
+	dbChat, err := chat.Resources.PostgresDb.GetChatById(context.Background(), dbMessage.ChatID)
+	participants := []uuid.UUID{dbChat.CreatorID, dbChat.FriendID}
+
+	if err != nil {
+		log.Printf("Error finding participants fo chat %v: %v\n", dbMessage.ChatID, err)
+	}
+
+	participants = helpers.RemoveUUID(participants, dbMessage.UserID)
+
+	log.Printf("Sending message to participants chat %v...\n", dbMessage.ChatID)
+
+	for _, conn := range chat.connections {
+		if conn.ChatID == dbMessage.ChatID {
+			err := conn.Connection.WriteJSON(message.DBMessageToMessage(dbMessage))
+
+			if err != nil {
+				log.Printf("Error writing message to chat %v\n", dbMessage.ChatID)
+			} else {
+				log.Printf("A message was sent to connection %v of chat %v\n", conn.Connection.RemoteAddr(), dbMessage.ChatID)
+
+				participants = helpers.RemoveUUID(participants, conn.UserID)
+			}
+		}
+	}
+
+	log.Printf("Participants of chat %v without a connection or with a write error %d\n", dbMessage.ChatID, len(participants))
+}
+
+func SaveMessage(postgresDb *db.Queries, incomingMessage IncomingMessage) *db.TbMessage {
 	messageText := fmt.Sprintf("%s", incomingMessage.Message)
 
-	_, err := postgresDb.CreateMessage(context.Background(), db.CreateMessageParams{
+	dbMessage, err := postgresDb.CreateMessage(context.Background(), db.CreateMessageParams{
 		ID:        uuid.New(),
 		ChatID:    incomingMessage.ChatID,
 		UserID:    incomingMessage.UserID,
@@ -224,7 +260,11 @@ func SaveMessage(postgresDb *db.Queries, incomingMessage IncomingMessage) {
 
 	if err != nil {
 		log.Printf("Error saving message to chat %v: %v\n", incomingMessage.ChatID, err)
+
+		return nil
 	} else {
 		log.Printf("Saved message to chat %v\n", incomingMessage.ChatID)
+
+		return &dbMessage
 	}
 }

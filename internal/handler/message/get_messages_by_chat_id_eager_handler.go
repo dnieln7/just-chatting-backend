@@ -30,7 +30,7 @@ func GetMessagesByChatIdEagerHandler(writer http.ResponseWriter, request *http.R
 		messages := []Message{}
 
 		for _, dbMessage := range dbMessages {
-			messages = append(messages, dbMessageToMessage(dbMessage))
+			messages = append(messages, DBMessageToMessage(dbMessage))
 		}
 
 		helpers.ResponseJson(writer, 200, Messages{

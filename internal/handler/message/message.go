@@ -21,7 +21,7 @@ type Message struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func dbMessageToMessage(dbMessage db.TbMessage) Message {
+func DBMessageToMessage(dbMessage db.TbMessage) Message {
 	return Message{
 		ID:        dbMessage.ID.String(),
 		ChatID:    dbMessage.ChatID.String(),
